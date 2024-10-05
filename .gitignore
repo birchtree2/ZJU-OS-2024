@@ -54,3 +54,12 @@ dkms.conf
 .DS_Store
 .vscode-ctags
 !fw_jump.elf
+
+#my
+linux/
+*.tar.gz
+*.bin
+vmlinux
+vmlinux.asm
+Image
+.vscode/
