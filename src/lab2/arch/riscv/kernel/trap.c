@@ -1,6 +1,7 @@
 #include "stdint.h"
 #include "printk.h"
 #include "clock.h"
+extern void do_timer();
 void trap_handler(uint64_t scause, uint64_t sepc) {
     // 通过 `scause` 判断 trap 类型
     // 如果是 interrupt 判断是否是 timer interrupt
