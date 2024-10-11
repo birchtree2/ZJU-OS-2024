@@ -14,13 +14,20 @@ void task_init() {
     srand(2024);
 
     // 1. 调用 kalloc() 为 idle 分配一个物理页
+
+    idle= (struct task_struct *)kalloc();
     // 2. 设置 state 为 TASK_RUNNING;
+    idle->state = TASK_RUNNING;
     // 3. 由于 idle 不参与调度，可以将其 counter / priority 设置为 0
+    idle->counter = 0;
+    idle->priority = 0;
     // 4. 设置 idle 的 pid 为 0
+    idle->pid = 0;
     // 5. 将 current 和 task[0] 指向 idle
-
+    current = idle;
+    task[0] = idle;
     /* YOUR CODE HERE */
-
+    
     // 1. 参考 idle 的设置，为 task[1] ~ task[NR_TASKS - 1] 进行初始化
     // 2. 其中每个线程的 state 为 TASK_RUNNING, 此外，counter 和 priority 进行如下赋值：
     //     - counter  = 0;
@@ -30,7 +37,15 @@ void task_init() {
     //     - sp 设置为该线程申请的物理页的高地址
 
     /* YOUR CODE HERE */
-
+    for(int i = 1; i < NR_TASKS; i++){
+        task[i] = (struct task_struct *)kalloc();
+        task[i]->state = TASK_RUNNING;
+        task[i]->counter = 0;
+        task[i]->priority = PRIORITY_MIN + rand() % (PRIORITY_MAX - PRIORITY_MIN + 1);
+        task[i]->pid = i;
+        task[i]->thread.ra = (uint64_t)__dummy;
+        task[i]->thread.sp = (uint64_t)task[i] + PGSIZE;
+    }
     printk("...task_init done!\n");
 }
 
