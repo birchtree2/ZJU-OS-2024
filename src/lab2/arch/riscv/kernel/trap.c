@@ -15,6 +15,7 @@ void trap_handler(uint64_t scause, uint64_t sepc) {
             case 0x5:
                 printk("[S] Supervisor Mode Timer Interrupt\n");
                 clock_set_next_event();
+                do_timer();//进行线程调度
                 break;
             default:
                 printk("other interrupt\n");
