@@ -1,5 +1,6 @@
     .extern start_kernel
     .extern sbi_set_timer
+    .extern mm_init
     .section .text.init #entry->init
     .align 2
     .globl _start
@@ -36,6 +37,8 @@ _start:
     # set sstatus[SIE] = 1
     li t0,2 # SIE是sstatus中的第1位
     csrs sstatus, t0
+
+    call mm_init #初始化内存管理
 
     j start_kernel #already declared
     .section .bss.stack
