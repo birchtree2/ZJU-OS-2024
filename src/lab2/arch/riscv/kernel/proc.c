@@ -49,6 +49,58 @@ void task_init() {
     printk("...task_init done!\n");
 }
 
+extern void __switch_to(struct task_struct *prev, struct task_struct *next);
+void switch_to(struct task_struct *next){
+    if(current == next){
+        return;
+    }else{
+        struct task_struct *prev = current;
+        current = next;
+        __switch_to(prev, next);
+    }
+}
+
+void do_timer() {
+    if(current==idle){
+        schedule();
+        return;
+    }
+    if (current->counter > 0) {
+        current->counter--;
+    }
+    if (current->counter == 0) {
+        schedule();
+    }
+}
+
+void schedule(){
+    /*
+    task_init 的时候随机为各个线程赋予了优先级
+调度时选择 counter 最大的线程运行
+如果所有线程 counter 都为 0，则令所有线程 counter = priority
+即优先级越高，运行的时间越长，且越先运行
+设置完后需要重新进行调度
+最后通过 switch_to 切换到下一个线程
+    */
+    struct task_struct *next = idle;
+    for(int i = 1; i < NR_TASKS; i++){
+        if(task[i]->counter > next->counter){
+            next = task[i];
+        }
+    }
+    if(next->counter == 0){
+        for(int i = 1; i < NR_TASKS; i++){
+            task[i]->counter = task[i]->priority;
+        }
+        //重新选择
+        for(int i = 1; i < NR_TASKS; i++){
+            if(task[i]->counter > next->counter){
+                next = task[i];
+            }
+        }
+    }
+    switch_to(next);
+}
 #if TEST_SCHED
 #define MAX_OUTPUT ((NR_TASKS - 1) * 10)
 char tasks_output[MAX_OUTPUT];
@@ -88,3 +140,4 @@ void dummy() {
         }
     }
 }
+
