@@ -92,36 +92,39 @@ _traps:
 
 __switch_to:
     #a0是旧的task_struct, a1是新的task_struct
-    #task_struct的5个成员变量共40字节,所以从a0+40后面才是寄存器
+    #task_struct的4个成员变量共32字节,所以从a0+32后面才是寄存器
     #保存旧的寄存器ra,sp,s0-s11
-    sd ra, 40(a0)
-    sd sp, 48(a0)
-    sd s0, 56(a0)
-    sd s1, 64(a0)
-    sd s2, 72(a0)
-    sd s3, 80(a0)
-    sd s4, 88(a0)
-    sd s5, 96(a0)
-    sd s6, 104(a0)
-    sd s7, 112(a0)
-    sd s8, 120(a0)
-    sd s9, 128(a0)
-    sd s10, 136(a0)
-    sd s11, 144(a0)
-    #加载新的寄存器ra,sp,s0-s11
-    ld ra, 40(a1)
-    ld sp, 48(a1)
-    ld s0, 56(a1)
-    ld s1, 64(a1)
-    ld s2, 72(a1)
-    ld s3, 80(a1)
-    ld s4, 88(a1)
-    ld s5, 96(a1)
-    ld s6, 104(a1)
-    ld s7, 112(a1)
-    ld s8, 120(a1)
-    ld s9, 128(a1)
-    ld s10, 136(a1)
-    ld s11, 144(a1)
-    ret
-
+   addi t0, a0, 32 #注意结构体偏移量!!![写到报告里]
+   addi t1, a1, 32
+   sd ra, 0(t0)
+   sd sp, 8(t0)
+   sd s0, 16(t0)
+   sd s1, 24(t0)
+   sd s2, 32(t0)
+   sd s3, 40(t0)
+   sd s4, 48(t0)
+   sd s5, 56(t0)
+   sd s6, 64(t0)
+   sd s7, 72(t0)
+   sd s8, 80(t0)
+   sd s9, 88(t0)
+   sd s10, 96(t0)
+   sd s11, 104(t0)
+   #加载新的寄存器ra,sp,s0-s11
+   ld ra, 0(t1)
+   ld sp, 8(t1)
+   ld s0, 16(t1)
+   ld s1, 24(t1)
+   ld s2, 32(t1)
+   ld s3, 40(t1)
+   ld s4, 48(t1)
+   ld s5, 56(t1)
+   ld s6, 64(t1)
+   ld s7, 72(t1)
+   ld s8, 80(t1)
+   ld s9, 88(t1)
+   ld s10, 96(t1)
+   ld s11, 104(t1)
+   #返回
+   ret #用户态
+ 
