@@ -2,6 +2,7 @@
     .extern sbi_set_timer
     .extern mm_init
     .extern task_init
+    .extern setup_vm
     .section .text.init #entry->init
     .align 2
     .globl _start
@@ -15,6 +16,8 @@ _start:
     #应该在哪里call????  不能触发中断
     call mm_init #初始化内存管理
     call task_init #初始化任务管理
+    call setup_vm
+    call relocate
     # set stvec = _traps
     la t0, _traps
     csrw stvec, t0
@@ -37,6 +40,27 @@ _start:
     
 
     j start_kernel #already declared
+
+relocate:
+    # set ra = ra + PA2VA_OFFSET
+    # set sp = sp + PA2VA_OFFSET (If you have set the sp before)
+
+    ###################### 
+    #   YOUR CODE HERE   #
+    ######################
+
+    # need a fence to ensure the new translations are in use
+    sfence.vma zero, zero
+
+    # set satp with early_pgtbl
+
+    ###################### 
+    #   YOUR CODE HERE   #
+    ######################
+
+    ret
+
+
     .section .bss.stack
     .globl boot_stack
 boot_stack:
