@@ -14,7 +14,7 @@ void trap_handler(uint64_t scause, uint64_t sepc) {
     if(scause&(mask_int)){//最高位为1,则是interrupt
         switch(scause&(~mask_int)){//去掉最高位
             case 0x5:
-                printk("[S] Supervisor Mode Timer Interrupt\n");
+                //printk("[S] Supervisor Mode Timer Interrupt\n");
                 clock_set_next_event();
                 do_timer();//进行线程调度
                 break;
