@@ -45,6 +45,7 @@ void task_init() {
         task[i]->pid = i;
         task[i]->thread.ra = (uint64_t)__dummy;
         task[i]->thread.sp = (uint64_t)task[i] + PGSIZE;
+        //SET [PID = 1 PRIORITY = 7 COUNTER = 7]
     }
     printk("...task_init done!\n");
 }
@@ -54,6 +55,8 @@ void switch_to(struct task_struct *next){
     if(current == next){
         return;
     }else{
+        //PRINT pid,priority,counter
+        printk("switch to [PID=%d, priority=%d, counter=%d]\n", next->pid, next->priority, next->counter);
         struct task_struct *prev = current;
         current = next;
         __switch_to(prev, next);
@@ -91,6 +94,7 @@ void schedule(){
     if(next->counter == 0){
         for(int i = 1; i < NR_TASKS; i++){
             task[i]->counter = task[i]->priority;
+            printk("SET [PID = %d PRIORITY = %d COUNTER = %d]\n", task[i]->pid, task[i]->priority, task[i]->counter);
         }
         //重新选择
         for(int i = 1; i < NR_TASKS; i++){

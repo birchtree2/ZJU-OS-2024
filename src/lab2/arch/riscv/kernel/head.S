@@ -12,7 +12,9 @@ _start:
     # - your code here -
     # ------------------
     la sp, boot_stack_top #la: load address of symbol to reg
-
+    #应该在哪里call????  不能触发中断
+    call mm_init #初始化内存管理
+    call task_init #初始化任务管理
     # set stvec = _traps
     la t0, _traps
     csrw stvec, t0
@@ -27,11 +29,6 @@ _start:
     add a0, a0, a1
     call sbi_set_timer
     
-    #应该在哪里call????
-    call mm_init #初始化内存管理
-    call task_init #初始化任务管理
-
-
     # set sstatus[SIE] = 1
     li t0,2 # SIE是sstatus中的第1位
     csrs sstatus, t0
