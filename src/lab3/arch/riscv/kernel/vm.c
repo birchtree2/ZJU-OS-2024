@@ -1,7 +1,18 @@
+#include"printk.h" //printk
+#include<string.h> //memset
 #include"defs.h"
+#include"mm.h" //kalloc
 #include"stdlib.h"
 //在vmlinux.lds中的符号：
-extern char* _stext, * _etext, * _srodata, * _erodata, * _sdata, * _edata, * _sbss, * _ebss,*_skernel,*_ekernel;
+extern char _stext[];
+extern char _etext[];
+extern char _srodata[];
+extern char _erodata[];
+extern char _sdata[];
+extern char _edata[];
+extern char _sbss[];
+extern char _ebss[];
+extern char _ekernel[];
 
 
 const uint64_t VMASK=0x1;
@@ -20,38 +31,44 @@ void setup_vm() {
      *     低 30 bit 作为页内偏移，这里注意到 30 = 9 + 9 + 12，即我们只使用根页表，根页表的每个 entry 都对应 1GiB 的区域
      * 3. Page Table Entry 的权限 V | R | W | X 位设置为 1
     **/
-    int index= (VM_START>>30)&((1<<9)-1);
-    early_pgtbl[index]=((PHY_START>>30)&((1<<26)-1))<<28|0xf;
-    index=(PHY_START>>30)&((1<<9)-1);
-    early_pgtbl[index]=((PHY_START>>30)&((1<<26)-1))<<28|0xf;
+    early_pgtbl[VM_START >> 30 & 0x1ff] = ((PHY_START >> 30 & 0x3ffffff) << 28) + 0xf;
+    early_pgtbl[PHY_START >> 30 & 0x1ff] = ((PHY_START >> 30 & 0x3ffffff) << 28) + 0xf;
+    // int index= (VM_START>>30)&((1<<9)-1);
+    // early_pgtbl[index]=((PHY_START>>30)&((1<<26)-1))<<28|0xf;
+    // index=(PHY_START>>30)&((1<<9)-1);
+    // early_pgtbl[index]=((PHY_START>>30)&((1<<26)-1))<<28|0xf;
     printk("setup_vm done\n");
 }
 
 /* swapper_pg_dir: kernel pagetable 根目录，在 setup_vm_final 进行映射 */
 uint64_t swapper_pg_dir[512] __attribute__((__aligned__(0x1000)));
-
+void create_mapping(uint64_t *pgtbl, uint64_t va, uint64_t pa, uint64_t sz, uint64_t perm);
 void setup_vm_final() {
+    printk("setup_vm_final start\n");
     memset(swapper_pg_dir, 0x0, PGSIZE);
 
     // No OpenSBI mapping required
 
     // mapping kernel text X|-|R|V
     // create_mapping(...);
-    create_mapping(swapper_pg_dir, _stext,_stext-PA2VA_OFFSET, 
+    printk("kernel text: %p-%p to map\n",_stext,_etext);
+    create_mapping(swapper_pg_dir, (uint64_t)_stext,(uint64_t)_stext-PA2VA_OFFSET, 
                     _etext-_stext, XMASK|RMASK|VMASK);
     // // mapping kernel rodata -|-|R|V   只读的数据(const)
     // create_mapping(...);
-    create_mapping(swapper_pg_dir, _srodata,_srodata-PA2VA_OFFSET, 
+    printk("kernel rodata: %p-%p mapped\n",_srodata,_erodata);
+    create_mapping(swapper_pg_dir, (uint64_t)_srodata,(uint64_t)_srodata-PA2VA_OFFSET, 
                     _erodata-_srodata, RMASK|VMASK);
     // // mapping other memory -|W|R|V
     // create_mapping(...);
-    create_mapping(swapper_pg_dir, _sdata,_sdata-PA2VA_OFFSET, 
+    create_mapping(swapper_pg_dir, (uint64_t)_sdata,(uint64_t)_sdata-PA2VA_OFFSET, 
                     _edata-_sdata, WMASK|RMASK|VMASK);
     
-    create_mapping(swapper_pg_dir, _sbss,_sbss-PA2VA_OFFSET, 
+    create_mapping(swapper_pg_dir, (uint64_t)_sbss,(uint64_t)_sbss-PA2VA_OFFSET, 
                     _ebss-_sbss, WMASK|RMASK|VMASK);
-    create_mapping(swapper_pg_dir, _skernel,_skernel-PA2VA_OFFSET, 
-                    _ekernel-_skernel, WMASK|RMASK|VMASK);
+    // create_mapping(swapper_pg_dir,(uint64_t)_ekernel, (uint64_t)_ekernel - PA2VA_OFFSET,
+    //                  PHY_END -  ((uint64_t)_ekernel - PA2VA_OFFSET),
+    //                 WMASK|RMASK|VMASK);
     //map kernel code
 
     // set satp with swapper_pg_dir
@@ -74,7 +91,7 @@ void setup_vm_final() {
     );
 
     // flush icache
-    asm volatile("fence.i");
+    // asm volatile("fence.i");
     return;
 }
 
@@ -91,6 +108,7 @@ void create_mapping(uint64_t *pgtbl, uint64_t va, uint64_t pa, uint64_t sz, uint
      * 创建多级页表的时候可以使用 kalloc() 来获取一页作为页表目录
      * 可以使用 V bit 来判断页表项是否存在
     **/
+     printk("pgtbl:%p, va:%p, pa:%p, sz:%p, perm:%p\n",pgtbl,va,pa,sz,perm);
     int k=0;
     while(sz>0){
         uint64_t cur_va=va+PGSIZE*k;
@@ -100,6 +118,8 @@ void create_mapping(uint64_t *pgtbl, uint64_t va, uint64_t pa, uint64_t sz, uint
         uint64_t *pgtb_2,*pgtb_1,*pgtb_0;//3级,2级,1级页表的基地址
         pgtb_2=pgtbl;  
         //左移10是因为低10位是标志位
+        printk("sz=%d vpn2:%d, vpn1:%d, vpn0:%d\n",sz,vpn2,vpn1,vpn0);
+        printk("%x\n",pgtb_2[vpn2]);
         if(pgtb_2[vpn2] & VMASK) pgtb_1=(pgtb_2[vpn2]>>10)*PGSIZE+PA2VA_OFFSET;
         else{
             pgtb_1=kalloc();//kalloc()返回的是虚拟地址
@@ -110,8 +130,10 @@ void create_mapping(uint64_t *pgtbl, uint64_t va, uint64_t pa, uint64_t sz, uint
             pgtb_0=kalloc();
             pgtb_1[vpn1]=(((uint64_t)pgtb_0-PA2VA_OFFSET)/PGSIZE)<<10|VMASK;
         }
-        pgtb_0[vpn0]=((pa/PGSIZE)<<10)|perm; //pa/PGSIZE是最后一级页号,pa%PGSIZE是offset
+        pgtb_0[vpn0]=((pa/PGSIZE+k)<<10)|perm; //pa/PGSIZE是最后一级页号,pa%PGSIZE是offset
         k++;
+        if(sz<PGSIZE) break; //因为sz是unsigned,所以不能直接sz-=PGSIZE
         sz-=PGSIZE;
     }
+    printk("map finished\n");
 }
