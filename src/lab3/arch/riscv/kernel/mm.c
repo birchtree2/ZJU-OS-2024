@@ -42,6 +42,6 @@ void kfreerange(char *start, char *end) {
 }
 
 void mm_init(void) {
-    kfreerange(_ekernel, (char *)PHY_END);
+    kfreerange(_ekernel, (char *)PHY_END+PA2VA_OFFSET); //结束位置改为虚拟地址！
     printk("...mm_init done!\n");
 }
