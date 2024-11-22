@@ -11,11 +11,13 @@ struct task_struct *current;        // 指向当前运行线程的 task_struct
 struct task_struct *task[NR_TASKS]; // 线程数组，所有的线程都保存在此
 
 void task_init() {
+    printk("ok");
     srand(2024);
 
     // 1. 调用 kalloc() 为 idle 分配一个物理页
 
     idle= (struct task_struct *)kalloc();
+    printk("ok2");
     // 2. 设置 state 为 TASK_RUNNING;
     idle->state = TASK_RUNNING;
     // 3. 由于 idle 不参与调度，可以将其 counter / priority 设置为 0
@@ -37,6 +39,7 @@ void task_init() {
     //     - sp 设置为该线程申请的物理页的高地址
 
     /* YOUR CODE HERE */
+    printk("task_init start\n");
     for(int i = 1; i < NR_TASKS; i++){
         task[i] = (struct task_struct *)kalloc();
         task[i]->state = TASK_RUNNING;
