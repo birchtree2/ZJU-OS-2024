@@ -74,16 +74,12 @@ void setup_vm_final() {
 
     printk("setup_vm_final done\n");
 
-    uint64_t pgid=((uint64_t)swapper_pg_dir-PA2VA_OFFSET)/PGSIZE;
+    uint64_t satp=((uint64_t)swapper_pg_dir-PA2VA_OFFSET)/PGSIZE|0x8000000000000000;
     asm volatile(
-        "addi t0,%[PGID],0\n" //satp[0:44] 为页表基址,即PGID
-        "li t1,8\n"
-        "slli t1,t1,60\n" //把satp[63:60]  (mode) 设置为8 (sv39)
-        "add t0,t0,t1\n"
-        "csrw satp,t0\n"
+        "csrw satp,%[SATP]\n"
         "sfence.vma zero, zero" // flush TLB
         :
-        : [PGID] "r" (pgid)
+        : [SATP] "r" (satp)
         : "t0","t1"
     );
 
