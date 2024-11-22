@@ -11,10 +11,8 @@ struct {
 
 void *kalloc() {
     struct run *r;
-
     r = kmem.freelist;
     kmem.freelist = r->next;
-    
     memset((void *)r, 0x0, PGSIZE);
     return (void *)r;
 }
@@ -35,6 +33,7 @@ void kfree(void *addr) {
 }
 
 void kfreerange(char *start, char *end) {
+    printk("kfreerange %p %p\n",start,end);
     char *addr = (char *)PGROUNDUP((uintptr_t)start);
     for (; (uintptr_t)(addr) + PGSIZE <= (uintptr_t)end; addr += PGSIZE) {
         kfree((void *)addr);
@@ -42,6 +41,6 @@ void kfreerange(char *start, char *end) {
 }
 
 void mm_init(void) {
-    kfreerange(_ekernel, (char *)PHY_END+PA2VA_OFFSET); //结束位置改为虚拟地址！
+    kfreerange(_ekernel, (char *)(VM_START+PHY_SIZE)); //结束位置改为虚拟地址！
     printk("...mm_init done!\n");
 }

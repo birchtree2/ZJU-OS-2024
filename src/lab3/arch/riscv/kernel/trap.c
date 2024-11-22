@@ -24,6 +24,6 @@ void trap_handler(uint64_t scause, uint64_t sepc) {
         }
     }
     else{//为0则是exception
-        // printk("exception\n");
+        printk("exception,code=%x\n",scause);
     }
 }

@@ -63,3 +63,4 @@ vmlinux
 vmlinux.asm
 Image
 .vscode/
+tmp_/

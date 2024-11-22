@@ -51,25 +51,22 @@ void setup_vm_final() {
 
     // mapping kernel text X|-|R|V
     // create_mapping(...);
+    uint64_t tot_size=0;
     printk("kernel text: %p-%p to map\n",_stext,_etext);
     create_mapping(swapper_pg_dir, (uint64_t)_stext,(uint64_t)_stext-PA2VA_OFFSET, 
                     _etext-_stext, XMASK|RMASK|VMASK);
+    tot_size+=_etext-_stext;
     // // mapping kernel rodata -|-|R|V   只读的数据(const)
     // create_mapping(...);
-    printk("kernel rodata: %p-%p mapped\n",_srodata,_erodata);
+    printk("kernel rodata: %p-%p to map\n",_srodata,_erodata);
     create_mapping(swapper_pg_dir, (uint64_t)_srodata,(uint64_t)_srodata-PA2VA_OFFSET, 
                     _erodata-_srodata, RMASK|VMASK);
+    tot_size+=_erodata-_srodata;
     // // mapping other memory -|W|R|V
     // create_mapping(...);
+    printk("other data len=%x %x %x\n",(uint64_t)PHY_END-(uint64_t)_sdata,(uint64_t)PHY_END,(uint64_t)_sdata);
     create_mapping(swapper_pg_dir, (uint64_t)_sdata,(uint64_t)_sdata-PA2VA_OFFSET, 
-                    _edata-_sdata, WMASK|RMASK|VMASK);
-    
-    create_mapping(swapper_pg_dir, (uint64_t)_sbss,(uint64_t)_sbss-PA2VA_OFFSET, 
-                    _ebss-_sbss, WMASK|RMASK|VMASK);
-    // create_mapping(swapper_pg_dir,(uint64_t)_ekernel, (uint64_t)_ekernel - PA2VA_OFFSET,
-    //                  PHY_END -  ((uint64_t)_ekernel - PA2VA_OFFSET),
-    //                 WMASK|RMASK|VMASK);
-    //map kernel code
+                   PHY_SIZE-tot_size, WMASK|RMASK|VMASK);
 
     // set satp with swapper_pg_dir
     // asm volatile("csrw satp, %0"::"r"(((uint64_t)swapper_pg_dir>>12)|8));
@@ -109,7 +106,7 @@ void create_mapping(uint64_t *pgtbl, uint64_t va, uint64_t pa, uint64_t sz, uint
      * 可以使用 V bit 来判断页表项是否存在
     **/
      printk("pgtbl:%p, va:%p, pa:%p, sz:%p, perm:%p\n",pgtbl,va,pa,sz,perm);
-    int k=0;
+    uint64_t k=0;
     while(sz>0){
         uint64_t cur_va=va+PGSIZE*k;
         uint64_t vpn2=(cur_va>>30)&((1<<9)-1);
@@ -118,22 +115,27 @@ void create_mapping(uint64_t *pgtbl, uint64_t va, uint64_t pa, uint64_t sz, uint
         uint64_t *pgtb_2,*pgtb_1,*pgtb_0;//3级,2级,1级页表的基地址
         pgtb_2=pgtbl;  
         //左移10是因为低10位是标志位
-        printk("sz=%d vpn2:%d, vpn1:%d, vpn0:%d\n",sz,vpn2,vpn1,vpn0);
-        printk("%x\n",pgtb_2[vpn2]);
+        // printk("sz=%d vpn2:%d, vpn1:%d, vpn0:%d\n",sz,vpn2,vpn1,vpn0);
+        // printk("pgtb2[vpn2]=%p\n",pgtb_2[vpn2]);
         if(pgtb_2[vpn2] & VMASK) pgtb_1=(pgtb_2[vpn2]>>10)*PGSIZE+PA2VA_OFFSET;
         else{
+            
             pgtb_1=kalloc();//kalloc()返回的是虚拟地址
+            // printk("new pgtb_1:%p\n",pgtb_1);
             pgtb_2[vpn2]=(((uint64_t)pgtb_1-PA2VA_OFFSET)/PGSIZE)<<10|VMASK;
         }
+        // printk("pgtb_1[vpn1]:%p %x\n",pgtb_1,pgtb_1[vpn1]);
         if(pgtb_1[vpn1] & VMASK) pgtb_0=(pgtb_1[vpn1]>>10)*PGSIZE+PA2VA_OFFSET;
         else{
             pgtb_0=kalloc();
+            // printk("new pgtb_0:%p\n",pgtb_0);
             pgtb_1[vpn1]=(((uint64_t)pgtb_0-PA2VA_OFFSET)/PGSIZE)<<10|VMASK;
+            // printk("new pgtb_1:%p\n",pgtb_1[vpn1]);
         }
         pgtb_0[vpn0]=((pa/PGSIZE+k)<<10)|perm; //pa/PGSIZE是最后一级页号,pa%PGSIZE是offset
         k++;
         if(sz<PGSIZE) break; //因为sz是unsigned,所以不能直接sz-=PGSIZE
         sz-=PGSIZE;
     }
-    printk("map finished\n");
+    printk("map finished\n-------------------\n");
 }
