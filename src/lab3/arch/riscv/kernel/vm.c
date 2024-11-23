@@ -32,7 +32,7 @@ void setup_vm() {
      * 3. Page Table Entry 的权限 V | R | W | X 位设置为 1
     **/
     early_pgtbl[VM_START >> 30 & 0x1ff] = ((PHY_START >> 30 & 0x3ffffff) << 28) + 0xf;
-    early_pgtbl[PHY_START >> 30 & 0x1ff] = ((PHY_START >> 30 & 0x3ffffff) << 28) + 0xf;
+    // early_pgtbl[PHY_START >> 30 & 0x1ff] = ((PHY_START >> 30 & 0x3ffffff) << 28) + 0xf;
     // int index= (VM_START>>30)&((1<<9)-1);
     // early_pgtbl[index]=((PHY_START>>30)&((1<<26)-1))<<28|0xf;
     // index=(PHY_START>>30)&((1<<9)-1);
