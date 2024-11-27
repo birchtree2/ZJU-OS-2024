@@ -14,12 +14,12 @@ _start:
     # ------------------
     # - your code here -
     # ------------------
-    la sp, boot_stack_top #la: load address of symbol to reg
-    #应该在哪里call????  不能触发中断
-    call setup_vm #先设置一级vm
     # set sie[STIE] = 1 
     li t0, 32 # STIE是sie中的第5位
     csrs sie, t0 #csrs是把对应位设置为1,而csrw是直接赋值
+    la sp, boot_stack_top #la: load address of symbol to reg
+    #应该在哪里call????  不能触发中断
+    call setup_vm #先设置一级vm
     call relocate #satp的设置
     call mm_init #初始化内存管理
     call setup_vm_final #设置三级页表vm
@@ -36,9 +36,10 @@ _start:
     add a0, a0, a1
     call sbi_set_timer
     
-    # set sstatus[SIE] = 1
-    li t0,2 # SIE是sstatus中的第1位
-    csrs sstatus, t0
+    #将 head.S 中设置 sstatus.SIE 的逻辑注释掉，确保 schedule 过程不受中断影响
+    # # set sstatus[SIE] = 1
+    # li t0,2 # SIE是sstatus中的第1位
+    # csrs sstatus, t0
 
     
     j start_kernel #already declared
