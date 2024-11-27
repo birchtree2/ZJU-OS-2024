@@ -7,8 +7,13 @@
     .globl __switch_to
      
 _traps:
-    # 1. save 32 registers and sepc to stack
-    addi sp,sp,-256
+    csrrw sp,sscratch,sp
+     #注意如果是内核线程（没有用户栈）触发了异常，则不需要进行栈切换。
+    bne sp,zero,_oldtraps  #（内核线程的 sp 永远指向的内核栈，且 sscratch 为 0）
+    csrrw sp,sscratch,sp #如果本来就是内核线程，那么就换回来，相当于没切换
+_oldtraps:
+    # 1. save 31 registers(no x0) and sepc and scause 33*8=264
+    addi sp,sp,-264
     sd ra, 0(sp)
     sd gp, 8(sp) #sp最后再存
     sd tp, 16(sp)
@@ -39,12 +44,13 @@ _traps:
     sd t4, 216(sp)
     sd t5, 224(sp)
     sd t6, 232(sp)
-    csrr t0, sepc  #先读取sepc,再存
-    sd t0, 240(sp) 
-    sd sp, 248(sp) #sp最后再存
     # 2. call trap_handler
     csrr a0, scause #根据RISC-V规范,函数调用时参数传递在a0-a7中
+    sd a0, 240(sp) #跟原来的trap不一样，新增保存scause
     csrr a1, sepc
+    sd a1, 248(sp) #跟原来的trap不一样，新增保存sepc
+    addi a2,sp,0 #a2=sp 这是因为trap_handler的参数3是*regs
+    sd sp, 256(sp) #sp最后再存
     call trap_handler
     # 3. restore sepc and 32 registers (x2(sp) should be restore last) from stack
     ld ra,0(sp)
@@ -77,17 +83,26 @@ _traps:
     ld t4, 216(sp)
     ld t5, 224(sp)
     ld t6, 240(sp)
-    csrw sepc, t6
+    csrw scause, t6 #因为写scause需要暂时用t6,所以先写完再把t6读出来
+    ld t6, 248(sp)
+    csrw sepc,t6
     ld t6, 232(sp)
-    ld sp, 248(sp)
-    addi sp,sp,256
-    # 4. return from trap
+    ld sp, 256(sp) #最后读sp
+    addi sp,sp,264
+    #栈切换
+    csrrw sp,sscratch,sp
+    bne sp,zero,_trapret
+    csrrw sp,sscratch,sp
+_trapret:    # 4. return from trap
     sret
 
  __dummy:
-    #把sepc设为dummy()的地址
-    la t0, dummy
-    csrw sepc, t0
+    #把sepc设为dummy()的地址  为什么？？
+    # la t0, dummy
+    # csrw sepc, t0
+    #初始化线程时，thread_struct.sp 保存了内核态栈 sp，thread_struct.sscratch 保存了用户态栈 sp，
+    #因此在 __dummy 进入用户态模式的时候，我们需要切换这两个栈
+    csrrw sp, sscratch, sp
     sret
 
 __switch_to:
