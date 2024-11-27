@@ -30,7 +30,7 @@ struct task_struct {
     uint64_t pid;       // 线程 id
 
     struct thread_struct thread;
-    uint64_t *pgd;  // 用户态页表
+    uint64_t *pgd;  // 用户态页表的基地址(虚拟地址)
 };
 
 /* 线程初始化，创建 NR_TASKS 个线程 */

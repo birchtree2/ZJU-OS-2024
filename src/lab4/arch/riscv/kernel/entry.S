@@ -92,7 +92,7 @@ _traps:
 
 __switch_to:
     #a0是旧的task_struct, a1是新的task_struct
-    #task_struct的4个成员变量共32字节,所以从a0+32后面才是寄存器
+    #proc.h task_struct的4个成员变量共32字节,所以从a0+32后面才是寄存器
     #保存旧的寄存器ra,sp,s0-s11
    addi t0, a0, 32 #注意结构体偏移量!!![写到报告里]
    addi t1, a1, 32
@@ -110,6 +110,19 @@ __switch_to:
    sd s9, 88(t0)
    sd s10, 96(t0)
    sd s11, 104(t0)
+   #保存sepc,sstatus,sscratch
+   csrr t2, sepc
+   sd t2, 112(t0)
+   csrr t2, sstatus
+   sd t2, 120(t0)
+   csrr t2, sscratch
+   sd t2, 128(t0)
+   #提取satp中页表地址并存储到pgd  注意pgd存储的是根页表的虚拟地址。而satp的ppn是物理地址>>12
+   csrr t2, satp
+   slli t2,t2,12 #右移12位
+   li t3, 0xffffffdf80000000 #+PA2VA_OFFSET
+   add t2, t2, t3
+   sd t2, 136(t0)
    #加载新的寄存器ra,sp,s0-s11
    ld ra, 0(t1)
    ld sp, 8(t1)
@@ -125,6 +138,24 @@ __switch_to:
    ld s9, 88(t1)
    ld s10, 96(t1)
    ld s11, 104(t1)
+   #加载新的sepc,sstatus,sscratch
+   ld t2, 112(t1)
+   csrw sepc, t2
+   ld t2, 120(t1)
+   csrw sstatus, t2
+   ld t2, 128(t1)
+   csrw sscratch, t2
+   #根据pgd设置satp
+   ld t2, 136(t1)
+   li t3, 0xffffffdf80000000 #+PA2VA_OFFSET
+   sub t2, t2, t3
+   srli t2,t2,12
+   li t3 8 #权限位
+   slli t3,t3,60
+   or t2,t2,t3
+#    sfence.vma zero, zero
+   csrw satp, t2
+   sfence.vma zero, zero #sfence应该设在哪里？？？？
    #返回
    ret #用户态
  

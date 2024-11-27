@@ -20,7 +20,7 @@ struct task_struct *idle;           // idle process
 struct task_struct *current;        // 指向当前运行线程的 task_struct
 struct task_struct *task[NR_TASKS]; // 线程数组，所有的线程都保存在此
 void setup_pgtable(struct task_struct *task) {
-    task->pgd = (uint64_t *)kalloc();
+    task->pgd = (uint64_t *)kalloc();//pgd存储根页表的虚拟地址
     memset(task->pgd, 0, PGSIZE);
     /*******************复制内核态页表**********************/
     uint64_t tot_size = 0;
