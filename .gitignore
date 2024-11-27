@@ -64,3 +64,8 @@ vmlinux.asm
 Image
 .vscode/
 tmp_/
+
+#User application compile results
+uapp
+uapp.asm
+uapp.elf.asm

@@ -17,10 +17,12 @@ TEST_SCHED  :=  0
 CFLAG   :=  $(CF) $(INCLUDE) -DTEST_SCHED=$(TEST_SCHED)
 
 .PHONY:all run debug clean
+#编译用户程序
 all: clean
 	${MAKE} -C lib all
 	${MAKE} -C init all
 	${MAKE} -C arch/riscv all
+	${MAKE} -C user all  
 	@echo -e '\n'Build Finished OK
 
 run: all
@@ -35,6 +37,7 @@ clean:
 	${MAKE} -C lib clean
 	${MAKE} -C init clean
 	${MAKE} -C arch/riscv clean
+	${MAKE} -C user clean
 	$(shell test -f vmlinux && rm vmlinux)
 	$(shell test -f System.map && rm System.map)
 	@echo -e '\n'Clean Finished
