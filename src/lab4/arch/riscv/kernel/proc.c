@@ -3,21 +3,59 @@
 #include "proc.h"
 #include "stdlib.h"
 #include "printk.h"
-
+extern char _stext[];
+extern char _etext[];
+extern char _srodata[];
+extern char _erodata[];
+extern char _sdata[];
+extern char _edata[];
+extern char _sbss[];
+extern char _ebss[];
+extern char _ekernel[];
+extern char uapp_start[];
+extern char uapp_end[];
 extern void __dummy();
-
+extern void create_mapping(uint64_t *pgtbl, uint64_t va, uint64_t pa, uint64_t sz, uint64_t perm);
 struct task_struct *idle;           // idle process
 struct task_struct *current;        // 指向当前运行线程的 task_struct
 struct task_struct *task[NR_TASKS]; // 线程数组，所有的线程都保存在此
-
+void setup_pgtable(struct task_struct *task) {
+    task->pgd = (uint64_t *)kalloc();
+    memset(task->pgd, 0, PGSIZE);
+    /*******************复制内核态页表**********************/
+    uint64_t tot_size = 0;
+    create_mapping(task->pgd, (uint64_t)_stext,(uint64_t)_stext-PA2VA_OFFSET, 
+                    _etext-_stext, XMASK|RMASK|VMASK);
+    tot_size+=_etext-_stext;
+    // // mapping kernel rodata -|-|R|V   只读的数据(const)
+    create_mapping(task->pgd, (uint64_t)_srodata,(uint64_t)_srodata-PA2VA_OFFSET, 
+                    _erodata-_srodata, RMASK|VMASK);
+    tot_size+=_erodata-_srodata;
+    // // mapping other memory -|W|R|V
+    printk("other data len=%x %x %x\n",(uint64_t)PHY_END-(uint64_t)_sdata,(uint64_t)PHY_END,(uint64_t)_sdata);
+    create_mapping(task->pgd, (uint64_t)_sdata,(uint64_t)_sdata-PA2VA_OFFSET, 
+                   PHY_SIZE-tot_size, WMASK|RMASK|VMASK);
+    /*****************************************************/
+    //mapping UAPP
+    create_mapping(task->pgd, 
+                (uint64_t)uapp_start,
+                (uint64_t)uapp_start-PA2VA_OFFSET, 
+                uapp_end-uapp_start, 
+                UMASK|XMASK|RMASK|VMASK|WMASK);
+    //u-mode stack 申请一个空的页面来作为用户态栈，并映射到进程的页表中
+    uint64_t ustack_end=(uint64_t)kalloc();//用户栈结束位置的虚拟地址
+    create_mapping( task->pgd, 
+                    USER_END-PGSIZE, 
+                    (ustack_end-PA2VA_OFFSET-PGSIZE),
+                    PGSIZE,
+                    UMASK|RMASK|VMASK|WMASK);
+}
 void task_init() {
-    printk("ok");
     srand(2024);
 
     // 1. 调用 kalloc() 为 idle 分配一个物理页
 
     idle= (struct task_struct *)kalloc();
-    printk("ok2");
     // 2. 设置 state 为 TASK_RUNNING;
     idle->state = TASK_RUNNING;
     // 3. 由于 idle 不参与调度，可以将其 counter / priority 设置为 0
@@ -48,7 +86,10 @@ void task_init() {
         task[i]->pid = i;
         task[i]->thread.ra = (uint64_t)__dummy;
         task[i]->thread.sp = (uint64_t)task[i] + PGSIZE;
-        //SET [PID = 1 PRIORITY = 7 COUNTER = 7]
+        task[i]->thread.sepc = USER_START;//将 sepc 设置为 U-Mode 的入口地址，其值为 USER_START
+        task[i]->thread.sstatus = SPP_MASK|SPIE_MASK|SUM_MASK;
+        task[i]->thread.sscratch = USER_END;//将 sscratch 设置为 U-Mode 的 sp，其值为 USER_END （将用户态栈放置在 user space 的最后一个页面）
+        setup_pgtable(&task[i]);
     }
     printk("...task_init done!\n");
 }

@@ -14,11 +14,6 @@ extern char _sbss[];
 extern char _ebss[];
 extern char _ekernel[];
 
-
-const uint64_t VMASK=0x1;
-const uint64_t RMASK=0x2;
-const uint64_t WMASK=0x4;
-const uint64_t XMASK=0x8;
 /* early_pgtbl: 用于 setup_vm 进行 1GiB 的映射 */
 uint64_t early_pgtbl[512] __attribute__((__aligned__(0x1000)));
 

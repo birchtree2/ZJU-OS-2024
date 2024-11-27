@@ -19,6 +19,7 @@ struct thread_struct {
     uint64_t ra;
     uint64_t sp;
     uint64_t s[12];
+    uint64_t sepc, sstatus, sscratch;
 };
 
 /* 线程数据结构 */
@@ -29,6 +30,7 @@ struct task_struct {
     uint64_t pid;       // 线程 id
 
     struct thread_struct thread;
+    uint64_t *pgd;  // 用户态页表
 };
 
 /* 线程初始化，创建 NR_TASKS 个线程 */

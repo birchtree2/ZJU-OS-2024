@@ -36,4 +36,16 @@
 //lab4
 #define USER_START (0x0000000000000000) // user space start virtual address
 #define USER_END (0x0000004000000000) // user space end virtual address
+
+//Sv39 page table entry   (Figure 62)
+#define VMASK 0x1
+#define RMASK 0x2
+#define WMASK 0x4
+#define XMASK 0x8
+#define UMASK 0x10
+
+//sstatus Figure 43
+#define SPP_MASK (0x1 << 8)
+#define SPIE_MASK (0x1 << 5)
+#define SUM_MASK (0x1 << 18)
 #endif
