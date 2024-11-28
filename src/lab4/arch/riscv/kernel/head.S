@@ -22,8 +22,6 @@ _start:
     call setup_vm #先设置一级vm
     call relocate #satp的设置
     call mm_init #初始化内存管理
-    call setup_vm_final #设置三级页表vm
-    call task_init #初始化任务管理
     # set stvec = _traps
     la t0, _traps
     csrw stvec, t0
@@ -40,8 +38,8 @@ _start:
     # # set sstatus[SIE] = 1
     # li t0,2 # SIE是sstatus中的第1位
     # csrs sstatus, t0
-
-    
+    call setup_vm_final #设置三级页表vm
+    call task_init #初始化任务管理
     j start_kernel #already declared
 
 relocate:

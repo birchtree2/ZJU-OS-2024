@@ -1,7 +1,7 @@
+#include "string.h"
 #include "mm.h"
 #include "defs.h"
 #include "proc.h"
-#include "stdlib.h"
 #include "printk.h"
 extern char _stext[];
 extern char _etext[];
@@ -12,15 +12,16 @@ extern char _edata[];
 extern char _sbss[];
 extern char _ebss[];
 extern char _ekernel[];
-extern char uapp_start[];
-extern char uapp_end[];
+extern char _sramdisk[];
+extern char _eramdisk[];
 extern void __dummy();
 extern void create_mapping(uint64_t *pgtbl, uint64_t va, uint64_t pa, uint64_t sz, uint64_t perm);
 struct task_struct *idle;           // idle process
 struct task_struct *current;        // 指向当前运行线程的 task_struct
 struct task_struct *task[NR_TASKS]; // 线程数组，所有的线程都保存在此
 void setup_pgtable(struct task_struct *task) {
-    task->pgd = (uint64_t *)kalloc();//pgd存储根页表的虚拟地址
+    task->pgd = (uint64_t *)alloc_page();//pgd存储根页表的虚拟地址
+    printk("task->pgd=%p\n",task->pgd);
     memset(task->pgd, 0, PGSIZE);
     /*******************复制内核态页表**********************/
     uint64_t tot_size = 0;
@@ -37,13 +38,19 @@ void setup_pgtable(struct task_struct *task) {
                    PHY_SIZE-tot_size, WMASK|RMASK|VMASK);
     /*****************************************************/
     //mapping UAPP
+    //对于每个进程，分配一块新的内存地址，将 uapp 二进制文件内容拷贝过去，之后再将其所在的页面映射到对应进程的页表中
+    uint64_t uapp_sz=_eramdisk-_sramdisk;
+    //计算uapp需要的页(向上取整)
+    uint64_t npage=(uapp_sz+PGSIZE-1)/PGSIZE;
+    void* uapp_start=alloc_pages(npage);
+    memcpy(uapp_start,(void*)_sramdisk,uapp_sz);
     create_mapping(task->pgd, 
-                (uint64_t)uapp_start,
+                USER_START,
                 (uint64_t)uapp_start-PA2VA_OFFSET, 
-                uapp_end-uapp_start, 
+                npage*PGSIZE, 
                 UMASK|XMASK|RMASK|VMASK|WMASK);
     //u-mode stack 申请一个空的页面来作为用户态栈，并映射到进程的页表中
-    uint64_t ustack_end=(uint64_t)kalloc();//用户栈结束位置的虚拟地址
+    uint64_t ustack_end=(uint64_t)alloc_page();//用户栈结束位置的虚拟地址
     create_mapping( task->pgd, 
                     USER_END-PGSIZE, 
                     (ustack_end-PA2VA_OFFSET-PGSIZE),
@@ -79,6 +86,7 @@ void task_init() {
     /* YOUR CODE HERE */
     printk("task_init start\n");
     for(int i = 1; i < NR_TASKS; i++){
+        printk("task[%d]:\n",i);
         task[i] = (struct task_struct *)kalloc();
         task[i]->state = TASK_RUNNING;
         task[i]->counter = 0;
@@ -87,9 +95,9 @@ void task_init() {
         task[i]->thread.ra = (uint64_t)__dummy;
         task[i]->thread.sp = (uint64_t)task[i] + PGSIZE;
         task[i]->thread.sepc = USER_START;//将 sepc 设置为 U-Mode 的入口地址，其值为 USER_START
-        task[i]->thread.sstatus = SPP_MASK|SPIE_MASK|SUM_MASK;
+        task[i]->thread.sstatus = SPIE_MASK|SUM_MASK;//SPP 设置为 0，SPIE 设置为 1，SUM 设置为 1
         task[i]->thread.sscratch = USER_END;//将 sscratch 设置为 U-Mode 的 sp，其值为 USER_END （将用户态栈放置在 user space 的最后一个页面）
-        setup_pgtable(&task[i]);
+        setup_pgtable(task[i]);//task[i]本身是指针
     }
     printk("...task_init done!\n");
 }

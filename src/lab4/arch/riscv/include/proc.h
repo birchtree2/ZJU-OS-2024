@@ -3,12 +3,12 @@
 
 #include "stdint.h"
 
-#if TEST_SCHED
-#define NR_TASKS (1 + 4)    // 测试时线程数量
-#else
-#define NR_TASKS (1 + 31)   // 用于控制最大线程数量（idle 线程 + 31 内核线程）
-#endif
-
+// #if TEST_SCHED
+// #define NR_TASKS (1 + 4)    // 测试时线程数量
+// #else
+// #define NR_TASKS (1 + 31)   // 用于控制最大线程数量（idle 线程 + 31 内核线程）
+// #endif
+#define NR_TASKS 5 //lab5
 #define TASK_RUNNING 0      // 为了简化实验，所有的线程都只有一种状态
 
 #define PRIORITY_MIN 1

@@ -35,9 +35,9 @@ void trap_handler(uint64_t scause, uint64_t sepc,struct pt_regs *regs) {
         }
     }
     else{//为0则是exception
-        printk("exception,code=%x\n",scause);
+        
         if(scause==ECALL_FROM_U_MODE){
-            printk("ecall from user mode\n");
+            // printk("ecall from user mode\n");
             //x17(a7)存放了系统调用号  对应norm[14]
             //x10(a0)存放了参数1  对应norm[7]
             if(regs->norm[14]==SYS_WRITE){
@@ -46,6 +46,8 @@ void trap_handler(uint64_t scause, uint64_t sepc,struct pt_regs *regs) {
                 regs->norm[7]=getpid();
             }
             regs->sepc+=4;//跳过ecall指令
+        }else{
+            printk("exception,scause=%x,sepc=%x,\n",scause,sepc);
         }
     }
 }

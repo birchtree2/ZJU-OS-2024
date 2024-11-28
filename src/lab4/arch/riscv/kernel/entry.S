@@ -165,7 +165,7 @@ __switch_to:
    li t3, 0xffffffdf80000000 #+PA2VA_OFFSET
    sub t2, t2, t3
    srli t2,t2,12
-   li t3 8 #权限位
+   li t3,8 #权限位
    slli t3,t3,60
    or t2,t2,t3
 #    sfence.vma zero, zero
