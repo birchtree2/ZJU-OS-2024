@@ -3,6 +3,7 @@
 #include "defs.h"
 #include "proc.h"
 #include "printk.h"
+#include "elf.h"
 extern char _stext[];
 extern char _etext[];
 extern char _srodata[];
@@ -19,6 +20,35 @@ extern void create_mapping(uint64_t *pgtbl, uint64_t va, uint64_t pa, uint64_t s
 struct task_struct *idle;           // idle process
 struct task_struct *current;        // 指向当前运行线程的 task_struct
 struct task_struct *task[NR_TASKS]; // 线程数组，所有的线程都保存在此
+void load_program(struct task_struct *task) {
+    Elf64_Ehdr *ehdr = (Elf64_Ehdr *)_sramdisk;
+    Elf64_Phdr *phdrs = (Elf64_Phdr *)(_sramdisk + ehdr->e_phoff);
+    for (int i = 0; i < ehdr->e_phnum; ++i) {
+        Elf64_Phdr *phdr = phdrs + i;
+        if (phdr->p_type == PT_LOAD) {
+            // printk("phdr->p_vaddr=%p\n",phdr->p_vaddr);
+            
+            // alloc space and copy content
+            // do mapping
+            // code...
+            uint64_t va = PGROUNDDOWN(phdr->p_vaddr);//注意地址对齐
+            uint64_t va_end=PGROUNDUP(phdr->p_vaddr+phdr->p_memsz);
+            uint64_t full_size=va_end-va;
+            uint64_t pa = alloc_pages(full_size/PGSIZE)-PA2VA_OFFSET;
+            memcpy((void *)(pa+PA2VA_OFFSET+(phdr->p_vaddr-va)), //alloc_page返回的只是页起始位置,还要加上p_vaddr相对起始位置的偏移
+                   (void *)(_sramdisk + phdr->p_offset), 
+                   phdr->p_filesz);
+            uint64_t flag=((phdr->p_flags&PF_X)?XMASK:0)|   //X
+                          ((phdr->p_flags&PF_W)?WMASK:0)|      //W
+                          ((phdr->p_flags&PF_R)?RMASK:0)|      //R
+                          VMASK|UMASK      ;//V
+            
+            create_mapping(task->pgd, va, pa, full_size, flag);
+            
+        }
+    }
+    task->thread.sepc = ehdr->e_entry;
+}
 void setup_pgtable(struct task_struct *task) {
     task->pgd = (uint64_t *)alloc_page();//pgd存储根页表的虚拟地址
     printk("task->pgd=%p\n",task->pgd);
@@ -38,18 +68,19 @@ void setup_pgtable(struct task_struct *task) {
                    PHY_SIZE-tot_size, WMASK|RMASK|VMASK);
     /*****************************************************/
     //mapping UAPP
+    load_program(task);
     //对于每个进程，分配一块新的内存地址，将 uapp 二进制文件内容拷贝过去，之后再将其所在的页面映射到对应进程的页表中
-    uint64_t uapp_sz=_eramdisk-_sramdisk;
-    //计算uapp需要的页(向上取整)
-    uint64_t npage=(uapp_sz+PGSIZE-1)/PGSIZE;
-    void* uapp_start=alloc_pages(npage);
-    memcpy(uapp_start,(void*)_sramdisk,uapp_sz);
-    create_mapping(task->pgd, 
-                USER_START,
-                (uint64_t)uapp_start-PA2VA_OFFSET, 
-                npage*PGSIZE, 
-                UMASK|XMASK|RMASK|VMASK|WMASK);
-    //u-mode stack 申请一个空的页面来作为用户态栈，并映射到进程的页表中
+    // uint64_t uapp_sz=_eramdisk-_sramdisk;
+    // //计算uapp需要的页(向上取整)
+    // uint64_t npage=(uapp_sz+PGSIZE-1)/PGSIZE;
+    // void* uapp_start=alloc_pages(npage);
+    // memcpy(uapp_start,(void*)_sramdisk,uapp_sz);
+    // create_mapping(task->pgd, 
+    //             USER_START,
+    //             (uint64_t)uapp_start-PA2VA_OFFSET, 
+    //             npage*PGSIZE, 
+    //             UMASK|XMASK|RMASK|VMASK|WMASK);
+    // //u-mode stack 申请一个空的页面来作为用户态栈，并映射到进程的页表中
     uint64_t ustack_end=(uint64_t)alloc_page();//用户栈结束位置的虚拟地址
     create_mapping( task->pgd, 
                     USER_END-PGSIZE, 

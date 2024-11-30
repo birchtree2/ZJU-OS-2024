@@ -47,7 +47,7 @@ void trap_handler(uint64_t scause, uint64_t sepc,struct pt_regs *regs) {
             }
             regs->sepc+=4;//跳过ecall指令
         }else{
-            printk("exception,scause=%x,sepc=%x,\n",scause,sepc);
+            printk("exception,scause=%d,sepc=%x,\n",scause,sepc);
         }
     }
 }
